@@ -116,7 +116,7 @@ function MemoryGame() {
   }, [initializeGame, clearTimers]);
 
   useEffect(() => {
-    if (isGameActive && cards.length === 0) {
+    if (isGameActive && cards.length > 0 && cards.every((card) => card.state === 'matched')) {
       setHasWon(true);
       setIsGameActive(false);
     }
@@ -137,10 +137,6 @@ function MemoryGame() {
           : card
       )
     );
-  }, []);
-
-  const removeMatchedCards = useCallback((cardIds: string[]) => {
-    setCards((prev) => prev.filter((card) => !cardIds.includes(card.id)));
   }, []);
 
   const revealCard = useCallback((cardId: string) => {
@@ -195,7 +191,6 @@ function MemoryGame() {
           const matchId = matchSequenceRef.current;
           setRecentMatch({ country: firstCard.label, id: matchId });
           scheduleTimeout(() => {
-            removeMatchedCards(nextSelection);
             setIsInteractionLocked(false);
           }, MATCH_SUCCESS_DURATION);
           scheduleTimeout(() => {
@@ -222,7 +217,6 @@ function MemoryGame() {
       isGameActive,
       isInteractionLocked,
       markCardsAsMatched,
-      removeMatchedCards,
       revealCard,
       resetSelections,
       scheduleTimeout
