@@ -23,6 +23,7 @@ const SHUFFLE_DURATION = 1200;
 const MATCH_SUCCESS_DURATION = 1200;
 const MATCH_TOAST_DURATION = 1800;
 const MISMATCH_HIDE_DELAY = 1100;
+const THEME_STORAGE_KEY = 'memory-game-theme';
 
 const countries: CountryConfig[] = [
   { key: 'united_states', name: 'ארצות הברית', asset: 'united_states.png' },
@@ -81,8 +82,25 @@ function MemoryGame() {
   const [recentMatch, setRecentMatch] = useState<{ country: string; id: number } | null>(null);
   const [guessCount, setGuessCount] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>('system');
-  const [systemPrefersDark, setSystemPrefersDark] = useState(false);
+  const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') {
+      return 'system';
+    }
+
+    const storedPreference = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedPreference === 'light' || storedPreference === 'dark' || storedPreference === 'system') {
+      return storedPreference;
+    }
+
+    return 'system';
+  });
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const matchSequenceRef = useRef(0);
   const startTimeRef = useRef<number | null>(null);
   const timeoutsRef = useRef<number[]>([]);
@@ -154,14 +172,16 @@ function MemoryGame() {
   }, [hasWon]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const updateSystemPreference = (event: MediaQueryListEvent | MediaQueryList) => {
+    const listener = (event: MediaQueryListEvent) => {
       setSystemPrefersDark(event.matches);
     };
 
-    updateSystemPreference(mediaQuery);
-
-    const listener = (event: MediaQueryListEvent) => updateSystemPreference(event);
+    setSystemPrefersDark(mediaQuery.matches);
 
     if (typeof mediaQuery.addEventListener === 'function') {
       mediaQuery.addEventListener('change', listener);
@@ -171,6 +191,14 @@ function MemoryGame() {
     mediaQuery.addListener(listener);
     return () => mediaQuery.removeListener(listener);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(THEME_STORAGE_KEY, themePreference);
+  }, [themePreference]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = resolvedTheme;
