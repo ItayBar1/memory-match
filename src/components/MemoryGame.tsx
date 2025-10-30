@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/memory-game.css';
 
 type CardVariant = 'flag' | 'name';
@@ -79,8 +79,15 @@ function MemoryGame() {
   const [hasWon, setHasWon] = useState(false);
   const [isInteractionLocked, setIsInteractionLocked] = useState(false);
   const [recentMatch, setRecentMatch] = useState<{ country: string; id: number } | null>(null);
+  const [guessCount, setGuessCount] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [themePreference, setThemePreference] = useState<'system' | 'light' | 'dark'>('system');
+  const [systemPrefersDark, setSystemPrefersDark] = useState(false);
   const matchSequenceRef = useRef(0);
+  const startTimeRef = useRef<number | null>(null);
   const timeoutsRef = useRef<number[]>([]);
+
+  const resolvedTheme = themePreference === 'system' ? (systemPrefersDark ? 'dark' : 'light') : themePreference;
 
   const clearTimers = useCallback(() => {
     timeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -99,11 +106,15 @@ function MemoryGame() {
     setSelectedIds([]);
     setHasWon(false);
     setRecentMatch(null);
+    setGuessCount(0);
+    setElapsedSeconds(0);
     matchSequenceRef.current = 0;
+    startTimeRef.current = null;
     setIsGameActive(false);
     setIsInteractionLocked(true);
     setIsShuffling(true);
     scheduleTimeout(() => {
+      startTimeRef.current = Date.now();
       setIsShuffling(false);
       setIsInteractionLocked(false);
       setIsGameActive(true);
@@ -121,6 +132,50 @@ function MemoryGame() {
       setIsGameActive(false);
     }
   }, [cards, isGameActive]);
+
+  useEffect(() => {
+    if (!isGameActive) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (startTimeRef.current) {
+        setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+      }
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isGameActive]);
+
+  useEffect(() => {
+    if (hasWon && startTimeRef.current) {
+      setElapsedSeconds(Math.floor((Date.now() - startTimeRef.current) / 1000));
+    }
+  }, [hasWon]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateSystemPreference = (event: MediaQueryListEvent | MediaQueryList) => {
+      setSystemPrefersDark(event.matches);
+    };
+
+    updateSystemPreference(mediaQuery);
+
+    const listener = (event: MediaQueryListEvent) => updateSystemPreference(event);
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+
+    mediaQuery.addListener(listener);
+    return () => mediaQuery.removeListener(listener);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
 
   const resetSelections = useCallback(() => {
     setSelectedIds([]);
@@ -180,6 +235,7 @@ function MemoryGame() {
       setSelectedIds(nextSelection);
 
       if (nextSelection.length === 2) {
+        setGuessCount((prev) => prev + 1);
         setIsInteractionLocked(true);
         const [firstId, secondId] = nextSelection;
         const firstCard = cards.find((item) => item.id === firstId);
@@ -239,9 +295,50 @@ function MemoryGame() {
     return 'בחרו שני כרטיסים בכל תור כדי למצוא זוגות תואמים.';
   }, [hasWon, isGameActive, isShuffling]);
 
+  const formattedTime = useMemo(() => {
+    const hours = Math.floor(elapsedSeconds / 3600)
+      .toString()
+      .padStart(2, '0');
+    const minutes = Math.floor((elapsedSeconds % 3600) / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = Math.floor(elapsedSeconds % 60)
+      .toString()
+      .padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  }, [elapsedSeconds]);
+
+  const handleThemeChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
+    setThemePreference(event.target.value as 'system' | 'light' | 'dark');
+  }, []);
+
   return (
-    <div className="memory-game" dir="rtl">
+    <div className={`memory-game memory-game--${resolvedTheme}`} dir="rtl">
       <header className="memory-game__header">
+        <div className="memory-game__top-bar">
+          <div className="memory-game__theme-selector">
+            <label htmlFor="theme-select" className="memory-game__theme-label">
+              מצב תצוגה
+            </label>
+            <select id="theme-select" value={themePreference} onChange={handleThemeChange}>
+              <option value="system">מערכת</option>
+              <option value="light">בהיר</option>
+              <option value="dark">כהה</option>
+            </select>
+          </div>
+
+          <div className="memory-game__stats" aria-live="polite">
+            <div className="memory-game__stat">
+              <span className="memory-game__stat-label">⏱ זמן:</span>
+              <span className="memory-game__stat-value">{formattedTime}</span>
+            </div>
+            <div className="memory-game__stat">
+              <span className="memory-game__stat-label">🧠 ניחושים:</span>
+              <span className="memory-game__stat-value">{guessCount}</span>
+            </div>
+          </div>
+        </div>
+
         <h1 className="memory-game__title">משחק זיכרון: מדינה ודגל</h1>
         <p className="memory-game__status">{statusMessage}</p>
         <button className="memory-game__button" onClick={initializeGame} disabled={isShuffling}>
@@ -279,7 +376,9 @@ function MemoryGame() {
         <div className="memory-game__overlay">
           <div className="memory-game__overlay-content">
             <h2>ניצחתם!</h2>
-            <p>מצאתם את כל הזוגות. מוכנים לסיבוב נוסף?</p>
+            <p>
+              מצאתם את כל הזוגות ב-{formattedTime} וב-{guessCount} ניחושים. מוכנים לסיבוב נוסף?
+            </p>
             <button className="memory-game__button" onClick={initializeGame}>
               שחקו שוב
             </button>
