@@ -7,6 +7,12 @@
   color: #1a2333;
 }
 
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  background: radial-gradient(circle at top, #1d2540, #0b0f1d);
+  color: #f5f7ff;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -24,6 +30,7 @@ body {
   align-items: stretch;
   padding: clamp(1.5rem, 3vw, 3rem);
   width: 100%;
+  color: inherit;
 }
 
 #root {
