@@ -1,16 +1,33 @@
 .memory-game {
-  width: min(1100px, 100vw - 2rem);
+  width: 100%;
+  max-width: none;
   background: rgba(255, 255, 255, 0.85);
   border-radius: 32px;
-  padding: 2.5rem 2rem 3rem;
+  padding: 2.5rem clamp(1.5rem, 4vw, 3rem) 3rem;
   box-shadow: 0 24px 60px rgba(31, 56, 100, 0.2);
   backdrop-filter: blur(12px);
   position: relative;
+  min-height: calc(100vh - 4rem);
 }
 
 .memory-game__header {
   text-align: center;
   margin-bottom: 1.5rem;
+}
+
+.memory-game__celebration {
+  margin: 0 auto 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 2rem;
+  border-radius: 999px;
+  background: rgba(81, 99, 255, 0.12);
+  color: #273372;
+  font-weight: 600;
+  font-size: clamp(1rem, 2vw, 1.2rem);
+  box-shadow: 0 18px 36px rgba(81, 99, 255, 0.18);
+  animation: celebrationPop 0.6s ease;
 }
 
 .memory-game__title {
@@ -52,9 +69,12 @@
 
 .memory-game__board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: clamp(0.85rem, 1.5vw, 1.5rem);
   transition: transform 0.6s ease;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow: visible;
 }
 
 .memory-game__board--shuffling {
@@ -70,6 +90,7 @@
   cursor: pointer;
   perspective: 900px;
   transition: transform 0.3s ease;
+  max-width: min(140px, 15vw);
 }
 
 .memory-card:disabled {
@@ -136,8 +157,7 @@
 }
 
 .memory-card--matched .memory-card__inner {
-  transform: scale(1.05);
-  animation: successPulse 0.8s ease;
+  animation: successPulse 0.6s ease, matchedExit 0.75s ease 0.45s forwards;
   box-shadow: 0 20px 50px rgba(255, 190, 70, 0.45);
 }
 
@@ -208,6 +228,17 @@
   }
 }
 
+@keyframes matchedExit {
+  0% {
+    transform: scale(1.05) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.35) translateX(-120vw) rotate(-12deg);
+    opacity: 0;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -217,13 +248,26 @@
   }
 }
 
+@keyframes celebrationPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 @media (max-width: 768px) {
-  .memory-game {
-    padding: 1.5rem 1.25rem 2.5rem;
+  .memory-game__board {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   }
 
-  .memory-game__board {
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 1rem;
+  .memory-card {
+    max-width: none;
   }
 }
