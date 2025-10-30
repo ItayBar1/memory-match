@@ -20,7 +20,8 @@ interface CountryConfig {
 }
 
 const SHUFFLE_DURATION = 1200;
-const MATCH_SUCCESS_DURATION = 900;
+const MATCH_SUCCESS_DURATION = 1200;
+const MATCH_TOAST_DURATION = 1800;
 const MISMATCH_HIDE_DELAY = 1100;
 
 const countries: CountryConfig[] = [
@@ -77,6 +78,8 @@ function MemoryGame() {
   const [isGameActive, setIsGameActive] = useState(false);
   const [hasWon, setHasWon] = useState(false);
   const [isInteractionLocked, setIsInteractionLocked] = useState(false);
+  const [recentMatch, setRecentMatch] = useState<{ country: string; id: number } | null>(null);
+  const matchSequenceRef = useRef(0);
   const timeoutsRef = useRef<number[]>([]);
 
   const clearTimers = useCallback(() => {
@@ -95,6 +98,8 @@ function MemoryGame() {
     setCards(freshDeck);
     setSelectedIds([]);
     setHasWon(false);
+    setRecentMatch(null);
+    matchSequenceRef.current = 0;
     setIsGameActive(false);
     setIsInteractionLocked(true);
     setIsShuffling(true);
@@ -186,23 +191,42 @@ function MemoryGame() {
 
         if (firstCard && secondCard && firstCard.countryKey === secondCard.countryKey && firstCard.variant !== secondCard.variant) {
           markCardsAsMatched(nextSelection);
+          matchSequenceRef.current += 1;
+          const matchId = matchSequenceRef.current;
+          setRecentMatch({ country: firstCard.label, id: matchId });
           scheduleTimeout(() => {
             removeMatchedCards(nextSelection);
             setIsInteractionLocked(false);
+          }, MATCH_SUCCESS_DURATION);
+          scheduleTimeout(() => {
+            setRecentMatch((current) => (current && current.id === matchId ? null : current));
+          }, MATCH_TOAST_DURATION);
+          scheduleTimeout(() => {
+            resetSelections();
           }, MATCH_SUCCESS_DURATION);
         } else {
           scheduleTimeout(() => {
             concealCards(nextSelection);
             setIsInteractionLocked(false);
           }, MISMATCH_HIDE_DELAY);
+          scheduleTimeout(() => {
+            resetSelections();
+          }, MISMATCH_HIDE_DELAY);
         }
 
-        scheduleTimeout(() => {
-          resetSelections();
-        }, MISMATCH_HIDE_DELAY);
       }
     },
-    [cards, concealCards, isGameActive, isInteractionLocked, markCardsAsMatched, revealCard, resetSelections, scheduleTimeout]
+    [
+      cards,
+      concealCards,
+      isGameActive,
+      isInteractionLocked,
+      markCardsAsMatched,
+      removeMatchedCards,
+      revealCard,
+      resetSelections,
+      scheduleTimeout
+    ]
   );
 
   const statusMessage = useMemo(() => {
@@ -230,6 +254,12 @@ function MemoryGame() {
           התחל משחק חדש
         </button>
       </header>
+
+      {recentMatch && (
+        <div className="memory-game__celebration" role="status" aria-live="polite">
+          <span>מעולה! מצאתם את {recentMatch.country}</span>
+        </div>
+      )}
 
       <div className={`memory-game__board ${isShuffling ? 'memory-game__board--shuffling' : ''}`}>
         {cards.map((card) => (
